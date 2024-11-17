@@ -8,18 +8,34 @@ import DOMPurity from "isomorphic-dompurify";
 const FeatureProduct = async ({
   categoryId,
   limit,
+  searchParams,
 }: {
   categoryId: string;
   limit?: number;
+  searchParams?: any;
 }) => {
   const ProductPerPage = 20;
   const mywixClient = await WixClientServer();
-  const res = await mywixClient.products
+  const productQuery = mywixClient.products
     .queryProducts()
+    .startsWith("name", searchParams?.name || "")
     .eq("collectionIds", categoryId)
-    .limit(limit || ProductPerPage)
-    .find();
-  //  console.log(res);
+    .hasSome("productType", [searchParams?.type || "physical" || "digital"])
+    .gt("priceData.price", searchParams?.min || 0)
+    .lt("priceData.price", searchParams?.max || 999999)
+    .limit(limit || ProductPerPage);
+
+  if (searchParams?.sort) {
+    const [sortType, sortBy] = searchParams.sort.split(" "); 
+    if (sortType === "asc") {
+      productQuery.ascending(sortBy);
+    }
+    if (sortType === "desc") {
+      productQuery.descending(sortBy);
+    }
+  }
+
+  const res = await productQuery.find();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
